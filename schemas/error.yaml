@@ -1,0 +1,34 @@
+type: object
+description: Standard error response returned by the Mainlayer API.
+required:
+  - error
+  - message
+  - status_code
+properties:
+  error:
+    type: string
+    description: Machine-readable error code.
+    example: invalid_request
+    enum:
+      - invalid_request
+      - unauthorized
+      - payment_required
+      - not_found
+      - conflict
+      - rate_limit_exceeded
+      - internal_error
+  message:
+    type: string
+    description: Human-readable description of the error.
+    example: The resource_id field is required.
+  status_code:
+    type: integer
+    description: HTTP status code mirrored in the body.
+    example: 400
+  details:
+    type: object
+    description: Optional additional context (field-level validation errors, etc.).
+    additionalProperties: true
+    example:
+      field: resource_id
+      reason: missing_required_field

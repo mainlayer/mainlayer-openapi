@@ -1,0 +1,33 @@
+{
+  "name": "mainlayer-openapi",
+  "version": "1.0.0",
+  "description": "Official OpenAPI 3.1 specification and Postman collection for the Mainlayer API.",
+  "private": true,
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "validate:verbose": "node scripts/validate.js --spec openapi.yaml",
+    "preview": "npx @redocly/cli preview-docs openapi.yaml",
+    "preview:swagger": "npx swagger-ui-watcher openapi.yaml",
+    "lint": "npx @redocly/cli lint openapi.yaml",
+    "bundle": "npx @redocly/cli bundle openapi.yaml -o dist/openapi.bundled.yaml",
+    "bundle:json": "npx @redocly/cli bundle openapi.yaml -o dist/openapi.bundled.json"
+  },
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^1.10.0"
+  },
+  "keywords": [
+    "openapi",
+    "api",
+    "mainlayer",
+    "payments",
+    "ai-agents",
+    "postman"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

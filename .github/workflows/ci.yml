@@ -1,0 +1,92 @@
+name: Validate OpenAPI Spec
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'mainlayer-other/tier2-integrations/mainlayer-openapi/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'mainlayer-other/tier2-integrations/mainlayer-openapi/**'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: mainlayer-other/tier2-integrations/mainlayer-openapi
+
+jobs:
+  validate:
+    name: Validate OpenAPI 3.1 Spec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mainlayer-other/tier2-integrations/mainlayer-openapi/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate spec with swagger-parser
+        run: npm run validate
+
+      - name: Lint spec with Redocly
+        run: npm run lint
+
+      - name: Bundle spec
+        run: |
+          mkdir -p dist
+          npm run bundle
+          npm run bundle:json
+
+      - name: Upload bundled spec as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-bundled
+          path: mainlayer-other/tier2-integrations/mainlayer-openapi/dist/
+          retention-days: 30
+
+  postman-lint:
+    name: Lint Postman Collection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate Postman collection JSON
+        run: |
+          node -e "
+            const fs = require('fs');
+            const filePath = 'mainlayer-other/tier2-integrations/mainlayer-openapi/postman/mainlayer.postman_collection.json';
+            try {
+              const raw = fs.readFileSync(filePath, 'utf8');
+              const col = JSON.parse(raw);
+              if (!col.info || !col.item) {
+                console.error('Invalid Postman collection structure.');
+                process.exit(1);
+              }
+              const count = col.item.reduce((acc, folder) => acc + (folder.item ? folder.item.length : 1), 0);
+              console.log('Postman collection is valid JSON.');
+              console.log('Folders: ' + col.item.length);
+              console.log('Requests: ' + count);
+            } catch (e) {
+              console.error('Failed to parse Postman collection: ' + e.message);
+              process.exit(1);
+            }
+          "

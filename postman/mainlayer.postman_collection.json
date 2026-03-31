@@ -1,0 +1,923 @@
+{
+  "info": {
+    "name": "Mainlayer API",
+    "description": "Official Postman collection for the Mainlayer API — payment infrastructure for AI agents.\n\nBase URL: https://api.mainlayer.xyz\n\nSet the `baseUrl` and `apiKey` collection variables before running requests.\n\nImport this collection, set your variables, and run the 'Auth / Login' request first — the pre-request script will automatically populate `authToken` for subsequent calls.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "ml-openapi-v1-2026",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.mainlayer.xyz",
+      "type": "string",
+      "description": "Mainlayer API base URL."
+    },
+    {
+      "key": "apiKey",
+      "value": "ml_live_sk_YOUR_KEY_HERE",
+      "type": "string",
+      "description": "Your Mainlayer API key. Get one from POST /api-keys or the dashboard."
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string",
+      "description": "Short-lived JWT populated automatically by the Login request test script."
+    },
+    {
+      "key": "vendorId",
+      "value": "ven_01HX4K9ZRMN8QWTBGX2V3F5P7",
+      "type": "string"
+    },
+    {
+      "key": "resourceId",
+      "value": "res_01HX4K9ZRMN8QWTBGX2V3F5P7",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "pay_01HX4K9ZRMN8QWTBGX2V3F5PA",
+      "type": "string"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "sub_01HX4K9ZRMN8QWTBGX2V3F5PC",
+      "type": "string"
+    },
+    {
+      "key": "apiKeyId",
+      "value": "key_01HX4K9ZRMN8QWTBGX2V3F5PD",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "inv_01HX4K9ZRMN8QWTBGX2V3F5PE",
+      "type": "string"
+    },
+    {
+      "key": "webhookId",
+      "value": "wh_01HX4K9ZRMN8QWTBGX2V3F5PG",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{apiKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Register and log in to your vendor account.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@acme-ai.com\",\n  \"password\": \"S3cur3P@ssw0rd!\",\n  \"wallet_address\": \"0xA1b2C3d4E5f6A1b2C3d4E5f6A1b2C3d4E5f6A1b2\",\n  \"display_name\": \"Acme AI\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a new vendor account. Returns the vendor profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has id', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.collectionVariables.set('vendorId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@acme-ai.com\",\n  \"password\": \"S3cur3P@ssw0rd!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Authenticate with email + password. The test script saves the returned token to `authToken`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.collectionVariables.set('authToken', body.token);",
+                  "  pm.collectionVariables.set('apiKey', body.token);",
+                  "});",
+                  "pm.test('expires_at is in future', () => {",
+                  "  const body = pm.response.json();",
+                  "  const exp = new Date(body.expires_at);",
+                  "  pm.expect(exp.getTime()).to.be.greaterThan(Date.now());",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Vendor",
+      "description": "Manage your vendor profile.",
+      "item": [
+        {
+          "name": "Get Vendor Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/vendor",
+              "host": ["{{baseUrl}}"],
+              "path": ["vendor"]
+            },
+            "description": "Returns the profile and summary stats for the authenticated vendor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has email field', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('email');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Resources",
+      "description": "Create, list, update, and deactivate monetized resources.",
+      "item": [
+        {
+          "name": "Create Resource",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/resources",
+              "host": ["{{baseUrl}}"],
+              "path": ["resources"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"gpt-summarizer-v2\",\n  \"type\": \"api\",\n  \"price\": 0.05,\n  \"fee_model\": \"per_call\",\n  \"description\": \"Summarizes any text into 3 bullet points. Ideal for AI pipelines that need concise digests.\",\n  \"callback_url\": \"https://api.example.com/mainlayer/callback\",\n  \"tags\": [\"nlp\", \"summarization\", \"gpt\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Register a new monetized resource."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has id and slug', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('id');",
+                  "  pm.expect(body.slug).to.equal('gpt-summarizer-v2');",
+                  "  pm.collectionVariables.set('resourceId', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Resources",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/resources?status=active&page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["resources"],
+              "query": [
+                { "key": "status", "value": "active" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            },
+            "description": "Returns all resources owned by the authenticated vendor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Resource",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/resources/{{resourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["resources", "{{resourceId}}"]
+            },
+            "description": "Retrieve a single resource by ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.equal(pm.collectionVariables.get('resourceId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Resource",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/resources/{{resourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["resources", "{{resourceId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 0.08,\n  \"description\": \"Updated: Summarizes any text into 3 bullet points. Now 40% faster.\",\n  \"tags\": [\"nlp\", \"summarization\", \"gpt\", \"v2\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Partially update a resource."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('price updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.price).to.equal(0.08);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deactivate Resource",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/resources/{{resourceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["resources", "{{resourceId}}"]
+            },
+            "description": "Deactivate a resource. It will no longer accept new payments."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is deactivated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal('deactivated');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "Pay for resource access and view payment history.",
+      "item": [
+        {
+          "name": "Pay for Resource",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["pay"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resource_id\": \"{{resourceId}}\",\n  \"payer_wallet\": \"agt_wallet_7f3a9c2e1b\",\n  \"amount\": 0.05,\n  \"coupon_code\": \"LAUNCH50\",\n  \"metadata\": {\n    \"agent_id\": \"agent_abc123\",\n    \"session_id\": \"sess_xyz789\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Initiate payment for a resource. Returns a payment record and a new entitlement."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('payment and entitlement returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('payment');",
+                  "  pm.expect(body).to.have.property('entitlement');",
+                  "  pm.collectionVariables.set('paymentId', body.payment.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/payments?status=completed&from=2026-03-01&to=2026-03-31&page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments"],
+              "query": [
+                { "key": "status", "value": "completed" },
+                { "key": "from", "value": "2026-03-01" },
+                { "key": "to", "value": "2026-03-31" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            },
+            "description": "Paginated payment history for the vendor's resources."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Entitlements",
+      "description": "Query and verify access rights granted by payments.",
+      "item": [
+        {
+          "name": "List Entitlements",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/entitlements?status=active&page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["entitlements"],
+              "query": [
+                { "key": "status", "value": "active" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            },
+            "description": "List all entitlements granted for the vendor's resources."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check Entitlement",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/entitlements/check?resource_id={{resourceId}}&payer_wallet=agt_wallet_7f3a9c2e1b",
+              "host": ["{{baseUrl}}"],
+              "path": ["entitlements", "check"],
+              "query": [
+                { "key": "resource_id", "value": "{{resourceId}}" },
+                { "key": "payer_wallet", "value": "agt_wallet_7f3a9c2e1b" }
+              ]
+            },
+            "description": "Verify whether a payer currently has access to a resource."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has_access is boolean', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.has_access).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Discovery",
+      "description": "Browse the Mainlayer resource marketplace (no auth required).",
+      "item": [
+        {
+          "name": "Discover Resources",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/discover?query=summarization&type=api&fee_model=per_call&limit=20&page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["discover"],
+              "query": [
+                { "key": "query", "value": "summarization" },
+                { "key": "type", "value": "api" },
+                { "key": "fee_model", "value": "per_call" },
+                { "key": "limit", "value": "20" },
+                { "key": "page", "value": "1" }
+              ]
+            },
+            "description": "Public marketplace search. No API key required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "description": "Revenue and usage analytics.",
+      "item": [
+        {
+          "name": "Revenue Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/analytics/revenue?period=30d",
+              "host": ["{{baseUrl}}"],
+              "path": ["analytics", "revenue"],
+              "query": [
+                { "key": "period", "value": "30d" }
+              ]
+            },
+            "description": "Aggregated revenue stats for the last 30 days."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('gross_revenue is number', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.gross_revenue).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "description": "Manage recurring subscription entitlements.",
+      "item": [
+        {
+          "name": "List Subscriptions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions?status=active&page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions"],
+              "query": [
+                { "key": "status", "value": "active" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            },
+            "description": "List all subscriptions for the vendor's resources."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/{{subscriptionId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "{{subscriptionId}}", "cancel"]
+            },
+            "description": "Cancel a subscription at the end of the current billing period."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status is cancelled', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal('cancelled');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "API Keys",
+      "description": "Create and revoke programmatic API keys.",
+      "item": [
+        {
+          "name": "List API Keys",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api-keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-keys"]
+            },
+            "description": "Returns all active (non-revoked) API keys. Secrets are masked."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api-keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-keys"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production Agent Key\",\n  \"permissions\": [\"read\", \"pay\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Create a new API key. The secret is returned only once — save it."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('secret returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('secret');",
+                  "  pm.collectionVariables.set('apiKeyId', body.id);",
+                  "  console.log('Save this secret now — it will not be shown again:', body.secret);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revoke API Key",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api-keys/{{apiKeyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api-keys", "{{apiKeyId}}"]
+            },
+            "description": "Permanently revoke an API key. This cannot be undone."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('revoked_at is set', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.revoked_at).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Invoices",
+      "description": "Access billing invoices.",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/invoices?status=paid&page=1&per_page=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"],
+              "query": [
+                { "key": "status", "value": "paid" },
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" }
+              ]
+            },
+            "description": "Returns all invoices for the vendor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Invoice",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", "{{invoiceId}}"]
+            },
+            "description": "Retrieve a single invoice including the PDF download link."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('pdf_url present', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('pdf_url');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "description": "Create promotional discount codes.",
+      "item": [
+        {
+          "name": "Create Coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/coupons",
+              "host": ["{{baseUrl}}"],
+              "path": ["coupons"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"LAUNCH50\",\n  \"discount_type\": \"percent\",\n  \"discount_value\": 50,\n  \"max_redemptions\": 200,\n  \"resource_id\": null,\n  \"expires_at\": \"2026-06-30T23:59:59Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Create a discount coupon that payers can apply at POST /pay."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('code matches', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.code).to.equal('LAUNCH50');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "description": "Configure webhook endpoints for real-time event notifications.",
+      "item": [
+        {
+          "name": "List Webhooks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/webhooks",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks"]
+            },
+            "description": "List all webhook configurations for the vendor."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('data is array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhooks",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://api.example.com/mainlayer/webhooks\",\n  \"events\": [\n    \"payment.completed\",\n    \"subscription.cancelled\",\n    \"entitlement.expired\"\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Register a new webhook. The signing secret is returned only once — store it securely."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('secret returned', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('secret');",
+                  "  pm.collectionVariables.set('webhookId', body.id);",
+                  "  console.log('Save this webhook secret — it will not be shown again:', body.secret);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+type: object
+description: A monetized resource (API endpoint, tool, dataset, or agent capability) registered by a vendor.
+required:
+  - id
+  - vendor_id
+  - slug
+  - type
+  - price
+  - fee_model
+  - status
+  - created_at
+properties:
+  id:
+    type: string
+    format: uuid
+    description: Unique identifier for the resource.
+    example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+  vendor_id:
+    type: string
+    format: uuid
+    description: The vendor who owns this resource.
+    example: ven_01HX4K9ZRMN8QWTBGX2V3F5P7
+  slug:
+    type: string
+    description: URL-safe identifier used in discovery and access checks.
+    pattern: '^[a-z0-9-_]+$'
+    maxLength: 128
+    example: gpt-summarizer-v2
+  type:
+    type: string
+    description: Category of resource.
+    enum:
+      - api
+      - tool
+      - dataset
+      - agent
+      - model
+    example: api
+  price:
+    type: number
+    format: float
+    description: Price per access in USD.
+    minimum: 0
+    example: 0.05
+  fee_model:
+    type: string
+    description: Billing model for the resource.
+    enum:
+      - per_call
+      - subscription_monthly
+      - subscription_yearly
+      - pay_per_token
+      - revenue_share
+    example: per_call
+  description:
+    type: string
+    description: Human-readable description shown in the discovery marketplace.
+    maxLength: 2000
+    example: Summarizes any text into 3 bullet points. Ideal for AI pipelines that need concise digests.
+  callback_url:
+    type: string
+    format: uri
+    description: Webhook URL Mainlayer calls to verify or fulfill access grants.
+    example: https://api.example.com/mainlayer/callback
+  status:
+    type: string
+    description: Lifecycle status of the resource.
+    enum:
+      - active
+      - inactive
+      - deactivated
+    example: active
+  access_count:
+    type: integer
+    description: Total number of times this resource has been accessed.
+    example: 4827
+  revenue_total:
+    type: number
+    format: float
+    description: Cumulative revenue earned from this resource in USD.
+    example: 241.35
+  tags:
+    type: array
+    items:
+      type: string
+    description: Optional tags for discoverability.
+    example:
+      - nlp
+      - summarization
+      - gpt
+  created_at:
+    type: string
+    format: date-time
+    description: ISO 8601 timestamp when the resource was created.
+    example: '2025-11-15T09:23:44Z'
+  updated_at:
+    type: string
+    format: date-time
+    description: ISO 8601 timestamp of the last update.
+    example: '2026-01-08T14:05:11Z'

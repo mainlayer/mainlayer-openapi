@@ -1,0 +1,93 @@
+type: object
+description: A record of a completed or pending payment for resource access.
+required:
+  - id
+  - resource_id
+  - payer_wallet
+  - amount
+  - status
+  - created_at
+properties:
+  id:
+    type: string
+    description: Unique payment identifier.
+    example: pay_01HX4K9ZRMN8QWTBGX2V3F5PA
+  resource_id:
+    type: string
+    format: uuid
+    description: The resource being paid for.
+    example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+  resource_slug:
+    type: string
+    description: Slug of the purchased resource.
+    example: gpt-summarizer-v2
+  payer_wallet:
+    type: string
+    description: Identifier (wallet address or account ID) of the paying agent or user.
+    example: agt_wallet_7f3a9c2e1b
+  vendor_id:
+    type: string
+    format: uuid
+    description: The vendor who received the payment.
+    example: ven_01HX4K9ZRMN8QWTBGX2V3F5P7
+  amount:
+    type: number
+    format: float
+    description: Amount paid in USD.
+    minimum: 0
+    example: 0.05
+  fee:
+    type: number
+    format: float
+    description: Platform fee retained by Mainlayer in USD.
+    example: 0.0025
+  net_amount:
+    type: number
+    format: float
+    description: Amount credited to the vendor after fees, in USD.
+    example: 0.0475
+  coupon_code:
+    type: string
+    description: Coupon applied to this payment, if any.
+    example: LAUNCH50
+  discount_amount:
+    type: number
+    format: float
+    description: Discount applied via coupon in USD.
+    example: 0.025
+  status:
+    type: string
+    description: Current state of the payment.
+    enum:
+      - pending
+      - completed
+      - failed
+      - refunded
+    example: completed
+  fee_model:
+    type: string
+    description: The fee model used for this payment.
+    enum:
+      - per_call
+      - subscription_monthly
+      - subscription_yearly
+      - pay_per_token
+      - revenue_share
+    example: per_call
+  metadata:
+    type: object
+    description: Arbitrary key-value pairs attached by the caller.
+    additionalProperties: true
+    example:
+      agent_id: agent_abc123
+      session_id: sess_xyz789
+  created_at:
+    type: string
+    format: date-time
+    description: ISO 8601 timestamp when the payment was initiated.
+    example: '2026-03-28T11:42:00Z'
+  completed_at:
+    type: string
+    format: date-time
+    description: ISO 8601 timestamp when the payment settled.
+    example: '2026-03-28T11:42:01Z'

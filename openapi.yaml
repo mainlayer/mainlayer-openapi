@@ -1,0 +1,1788 @@
+openapi: 3.1.0
+
+info:
+  title: Mainlayer API
+  version: 1.0.0
+  description: |
+    Mainlayer is payment infrastructure for AI agents — the simplest way for vendors to
+    monetize API endpoints, tools, datasets, and agent capabilities, and for agents to
+    discover and pay for them programmatically.
+
+    ## Authentication
+
+    All endpoints except `POST /auth/register` and `POST /auth/login` require an API key
+    passed as a Bearer token in the `Authorization` header:
+
+    ```
+    Authorization: Bearer ml_live_sk_...
+    ```
+
+    You can create and manage API keys via the `/api-keys` endpoints or the Mainlayer
+    dashboard at https://app.mainlayer.xyz.
+
+    ## Base URL
+
+    ```
+    https://api.mainlayer.xyz
+    ```
+
+    ## Rate Limits
+
+    Default rate limit is **1 000 requests per minute** per API key. Exceeding this returns
+    `429 Too Many Requests` with a `Retry-After` header indicating how many seconds to wait.
+
+    ## Errors
+
+    All errors follow a consistent JSON envelope:
+
+    ```json
+    {
+      "error": "invalid_request",
+      "message": "The resource_id field is required.",
+      "status_code": 400
+    }
+    ```
+
+  contact:
+    name: Mainlayer Support
+    url: https://mainlayer.xyz/docs
+    email: support@mainlayer.xyz
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.mainlayer.xyz
+    description: Production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Register and authenticate vendors and agents.
+  - name: vendor
+    description: Vendor profile management.
+  - name: resources
+    description: Create and manage monetized resources (APIs, tools, datasets, agents).
+  - name: payments
+    description: Initiate payments and view payment history.
+  - name: entitlements
+    description: Query access rights granted by completed payments.
+  - name: discovery
+    description: Browse the Mainlayer marketplace.
+  - name: analytics
+    description: Revenue and usage analytics for vendors.
+  - name: subscriptions
+    description: Manage recurring subscription entitlements.
+  - name: api-keys
+    description: Create and revoke programmatic API keys.
+  - name: webhooks
+    description: Configure webhook endpoints to receive real-time events.
+  - name: coupons
+    description: Create promotional discount codes.
+  - name: invoices
+    description: Access billing invoices.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: |
+        Pass your Mainlayer API key as a Bearer token.
+        Example: `Authorization: Bearer ml_live_sk_abc123`
+
+  schemas:
+    Error:
+      $ref: './schemas/error.yaml'
+
+    Resource:
+      $ref: './schemas/resource.yaml'
+
+    Payment:
+      $ref: './schemas/payment.yaml'
+
+    Entitlement:
+      $ref: './schemas/entitlement.yaml'
+
+    Vendor:
+      type: object
+      description: A vendor account that publishes resources on Mainlayer.
+      required:
+        - id
+        - email
+        - wallet_address
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: ven_01HX4K9ZRMN8QWTBGX2V3F5P7
+        email:
+          type: string
+          format: email
+          example: alice@acme-ai.com
+        wallet_address:
+          type: string
+          description: Vendor's payment wallet address.
+          example: '0xA1b2C3d4E5f6A1b2C3d4E5f6A1b2C3d4E5f6A1b2'
+        display_name:
+          type: string
+          example: Acme AI
+        website:
+          type: string
+          format: uri
+          example: https://acme-ai.com
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+          example: active
+        resource_count:
+          type: integer
+          example: 7
+        total_revenue:
+          type: number
+          format: float
+          description: Cumulative net revenue in USD.
+          example: 3482.10
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-09-01T12:00:00Z'
+
+    AuthToken:
+      type: object
+      required:
+        - token
+        - expires_at
+      properties:
+        token:
+          type: string
+          description: Short-lived JWT for authenticating subsequent requests.
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ2ZW5fMDFIWDRLOVpSTU44UVdUQkdYMlYzRjVQNyIsImV4cCI6MTc0MzU4MDAwMH0.Signature
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-03-31T11:42:00Z'
+        vendor_id:
+          type: string
+          example: ven_01HX4K9ZRMN8QWTBGX2V3F5P7
+
+    ApiKey:
+      type: object
+      required:
+        - id
+        - name
+        - prefix
+        - created_at
+      properties:
+        id:
+          type: string
+          example: key_01HX4K9ZRMN8QWTBGX2V3F5PD
+        name:
+          type: string
+          example: Production Agent Key
+        prefix:
+          type: string
+          description: First 12 characters of the key for identification.
+          example: ml_live_sk_a
+        secret:
+          type: string
+          description: Full secret — returned ONLY on creation. Store it securely.
+          example: ml_live_sk_abc123XYZ789secrettoken
+        permissions:
+          type: array
+          items:
+            type: string
+            enum:
+              - read
+              - write
+              - pay
+              - admin
+          example:
+            - read
+            - pay
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-01-10T08:00:00Z'
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-03-29T17:44:10Z'
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    Subscription:
+      type: object
+      required:
+        - id
+        - resource_id
+        - payer_wallet
+        - status
+        - current_period_start
+        - current_period_end
+      properties:
+        id:
+          type: string
+          example: sub_01HX4K9ZRMN8QWTBGX2V3F5PC
+        resource_id:
+          type: string
+          format: uuid
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+        resource_slug:
+          type: string
+          example: gpt-summarizer-v2
+        payer_wallet:
+          type: string
+          example: agt_wallet_7f3a9c2e1b
+        status:
+          type: string
+          enum:
+            - active
+            - cancelled
+            - past_due
+            - unpaid
+          example: active
+        plan:
+          type: string
+          enum:
+            - subscription_monthly
+            - subscription_yearly
+          example: subscription_monthly
+        amount:
+          type: number
+          format: float
+          description: Amount billed per period in USD.
+          example: 29.00
+        current_period_start:
+          type: string
+          format: date-time
+          example: '2026-03-01T00:00:00Z'
+        current_period_end:
+          type: string
+          format: date-time
+          example: '2026-04-01T00:00:00Z'
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-01-01T00:00:00Z'
+
+    Invoice:
+      type: object
+      required:
+        - id
+        - vendor_id
+        - amount
+        - status
+        - period_start
+        - period_end
+        - created_at
+      properties:
+        id:
+          type: string
+          example: inv_01HX4K9ZRMN8QWTBGX2V3F5PE
+        vendor_id:
+          type: string
+          example: ven_01HX4K9ZRMN8QWTBGX2V3F5P7
+        amount:
+          type: number
+          format: float
+          description: Total gross amount on the invoice in USD.
+          example: 1200.00
+        fee:
+          type: number
+          format: float
+          description: Platform fee withheld in USD.
+          example: 60.00
+        net_amount:
+          type: number
+          format: float
+          description: Amount paid out to vendor in USD.
+          example: 1140.00
+        status:
+          type: string
+          enum:
+            - draft
+            - open
+            - paid
+            - void
+          example: paid
+        period_start:
+          type: string
+          format: date-time
+          example: '2026-02-01T00:00:00Z'
+        period_end:
+          type: string
+          format: date-time
+          example: '2026-03-01T00:00:00Z'
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-03-02T10:15:00Z'
+        pdf_url:
+          type: string
+          format: uri
+          example: https://api.mainlayer.xyz/invoices/inv_01HX4K9ZRMN8QWTBGX2V3F5PE/pdf
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-03-01T00:00:01Z'
+
+    Coupon:
+      type: object
+      required:
+        - id
+        - code
+        - discount_type
+        - discount_value
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          example: cpn_01HX4K9ZRMN8QWTBGX2V3F5PF
+        code:
+          type: string
+          example: LAUNCH50
+        discount_type:
+          type: string
+          enum:
+            - percent
+            - fixed
+          example: percent
+        discount_value:
+          type: number
+          format: float
+          description: Percentage (0-100) or fixed USD amount depending on discount_type.
+          example: 50
+        max_redemptions:
+          type: integer
+          nullable: true
+          example: 200
+        redemption_count:
+          type: integer
+          example: 47
+        resource_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Restricts the coupon to a specific resource. Null means all resources.
+          example: null
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-06-30T23:59:59Z'
+        status:
+          type: string
+          enum:
+            - active
+            - expired
+            - exhausted
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-01-01T00:00:00Z'
+
+    Webhook:
+      type: object
+      required:
+        - id
+        - url
+        - events
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          example: wh_01HX4K9ZRMN8QWTBGX2V3F5PG
+        url:
+          type: string
+          format: uri
+          example: https://api.example.com/mainlayer/webhooks
+        events:
+          type: array
+          items:
+            type: string
+            enum:
+              - payment.completed
+              - payment.failed
+              - subscription.created
+              - subscription.cancelled
+              - subscription.past_due
+              - entitlement.granted
+              - entitlement.expired
+          example:
+            - payment.completed
+            - subscription.cancelled
+        secret:
+          type: string
+          description: HMAC signing secret — returned only on creation.
+          example: whsec_abc123XYZ789
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+          example: active
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-01-05T09:30:00Z'
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 142
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        has_more:
+          type: boolean
+          example: true
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Invalid or missing API key.
+            status_code: 401
+
+    NotFound:
+      description: The requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: Resource not found.
+            status_code: 404
+
+    RateLimited:
+      description: Rate limit exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: rate_limit_exceeded
+            message: Too many requests. Please retry after 30 seconds.
+            status_code: 429
+
+    BadRequest:
+      description: Invalid request parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Conflict with existing data (e.g. duplicate slug).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+paths:
+
+  # ---- Auth ----------------------------------------------------------------
+
+  /auth/register:
+    post:
+      operationId: authRegister
+      summary: Register a new vendor account
+      description: |
+        Creates a new vendor account. Requires a unique email address and a payment
+        wallet address. On success returns the new vendor profile; use `POST /auth/login`
+        to obtain a Bearer token.
+      tags:
+        - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - wallet_address
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: alice@acme-ai.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 10
+                  example: S3cur3P@ssw0rd!
+                wallet_address:
+                  type: string
+                  description: Payment wallet address associated with this vendor account.
+                  example: '0xA1b2C3d4E5f6A1b2C3d4E5f6A1b2C3d4E5f6A1b2'
+                display_name:
+                  type: string
+                  example: Acme AI
+      responses:
+        '201':
+          description: Vendor account created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vendor'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: A vendor with this email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: conflict
+                message: An account with this email address already exists.
+                status_code: 409
+
+  /auth/login:
+    post:
+      operationId: authLogin
+      summary: Log in and obtain a Bearer token
+      description: |
+        Authenticates a vendor with email and password. Returns a short-lived JWT
+        suitable for browser-based flows, and a list of the vendor's API keys for
+        agent-to-agent usage. For production agent use, prefer API keys created via
+        `POST /api-keys`.
+      tags:
+        - auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: alice@acme-ai.com
+                password:
+                  type: string
+                  format: password
+                  example: S3cur3P@ssw0rd!
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: unauthorized
+                message: Invalid email or password.
+                status_code: 401
+
+  # ---- Vendor --------------------------------------------------------------
+
+  /vendor:
+    get:
+      operationId: getVendor
+      summary: Get vendor profile
+      description: Returns the profile and summary statistics for the authenticated vendor.
+      tags:
+        - vendor
+      responses:
+        '200':
+          description: Vendor profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vendor'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Resources -----------------------------------------------------------
+
+  /resources:
+    post:
+      operationId: createResource
+      summary: Create a resource
+      description: |
+        Registers a new monetized resource. The `slug` must be unique within your
+        vendor account. Once active, paying agents can discover the resource via
+        `GET /discover` and purchase access via `POST /pay`.
+      tags:
+        - resources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - slug
+                - type
+                - price
+                - fee_model
+              properties:
+                slug:
+                  type: string
+                  pattern: '^[a-z0-9-_]+$'
+                  maxLength: 128
+                  example: gpt-summarizer-v2
+                type:
+                  type: string
+                  enum:
+                    - api
+                    - tool
+                    - dataset
+                    - agent
+                    - model
+                  example: api
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  description: Price in USD per access unit.
+                  example: 0.05
+                fee_model:
+                  type: string
+                  enum:
+                    - per_call
+                    - subscription_monthly
+                    - subscription_yearly
+                    - pay_per_token
+                    - revenue_share
+                  example: per_call
+                description:
+                  type: string
+                  maxLength: 2000
+                  example: Summarizes any text into 3 bullet points. Ideal for AI pipelines.
+                callback_url:
+                  type: string
+                  format: uri
+                  example: https://api.example.com/mainlayer/callback
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - nlp
+                    - summarization
+      responses:
+        '201':
+          description: Resource created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A resource with this slug already exists for this vendor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    get:
+      operationId: listResources
+      summary: List vendor's resources
+      description: Returns all resources belonging to the authenticated vendor.
+      tags:
+        - resources
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - inactive
+              - deactivated
+          example: active
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - api
+              - tool
+              - dataset
+              - agent
+              - model
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of resources.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /resources/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Resource ID.
+        schema:
+          type: string
+        example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+
+    get:
+      operationId: getResource
+      summary: Get a resource
+      description: Retrieves a single resource by ID.
+      tags:
+        - resources
+      responses:
+        '200':
+          description: Resource detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    put:
+      operationId: updateResource
+      summary: Update a resource
+      description: |
+        Updates one or more fields of an existing resource. Unspecified fields are
+        left unchanged. The `slug` cannot be changed after creation.
+      tags:
+        - resources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price:
+                  type: number
+                  format: float
+                  minimum: 0
+                  example: 0.08
+                description:
+                  type: string
+                  maxLength: 2000
+                  example: Updated description with better clarity.
+                callback_url:
+                  type: string
+                  format: uri
+                  example: https://api.example.com/mainlayer/callback-v2
+                status:
+                  type: string
+                  enum:
+                    - active
+                    - inactive
+                  example: active
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - nlp
+                    - summarization
+                    - v2
+      responses:
+        '200':
+          description: Updated resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    delete:
+      operationId: deactivateResource
+      summary: Deactivate a resource
+      description: |
+        Marks a resource as `deactivated`. It will no longer appear in discovery or
+        accept new payments. Existing entitlements are not revoked.
+      tags:
+        - resources
+      responses:
+        '200':
+          description: Resource deactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+                  status:
+                    type: string
+                    example: deactivated
+                  message:
+                    type: string
+                    example: Resource has been deactivated successfully.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Payments ------------------------------------------------------------
+
+  /pay:
+    post:
+      operationId: payForResource
+      summary: Pay for resource access
+      description: |
+        Initiates a payment for access to a resource. On success, Mainlayer creates
+        an entitlement record granting the `payer_wallet` access to the resource.
+        For `per_call` resources, each call to this endpoint grants one access unit.
+        For `subscription_*` resources, calling this endpoint starts or renews a
+        subscription and returns a recurring entitlement.
+      tags:
+        - payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resource_id
+                - payer_wallet
+                - amount
+              properties:
+                resource_id:
+                  type: string
+                  format: uuid
+                  example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+                payer_wallet:
+                  type: string
+                  description: Identifier for the paying agent or user.
+                  example: agt_wallet_7f3a9c2e1b
+                amount:
+                  type: number
+                  format: float
+                  description: Amount to pay in USD. Must match the resource price unless a coupon is applied.
+                  example: 0.05
+                coupon_code:
+                  type: string
+                  description: Optional coupon code for a discount.
+                  example: LAUNCH50
+                metadata:
+                  type: object
+                  additionalProperties: true
+                  description: Optional key-value pairs attached to the payment record.
+                  example:
+                    agent_id: agent_abc123
+                    session_id: sess_xyz789
+      responses:
+        '201':
+          description: Payment completed and entitlement granted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment:
+                    $ref: '#/components/schemas/Payment'
+                  entitlement:
+                    $ref: '#/components/schemas/Entitlement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: Payment failed — insufficient funds or payment method declined.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: payment_required
+                message: Payment could not be completed. Insufficient balance.
+                status_code: 402
+        '404':
+          description: Resource not found or deactivated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /payments:
+    get:
+      operationId: listPayments
+      summary: List payment history
+      description: Returns a paginated list of all payments associated with the authenticated vendor's resources.
+      tags:
+        - payments
+      parameters:
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+          description: Filter by resource ID.
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - pending
+              - completed
+              - failed
+              - refunded
+          example: completed
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Start date filter (inclusive). Format YYYY-MM-DD.
+          example: '2026-03-01'
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: End date filter (inclusive). Format YYYY-MM-DD.
+          example: '2026-03-31'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated payment history.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Entitlements --------------------------------------------------------
+
+  /entitlements:
+    get:
+      operationId: listEntitlements
+      summary: List entitlements
+      description: Returns all entitlements granted for the vendor's resources.
+      tags:
+        - entitlements
+      parameters:
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+        - name: payer_wallet
+          in: query
+          schema:
+            type: string
+          example: agt_wallet_7f3a9c2e1b
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - expired
+              - revoked
+          example: active
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of entitlements.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Entitlement'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /entitlements/check:
+    get:
+      operationId: checkEntitlement
+      summary: Check access for a payer
+      description: |
+        Checks whether a given `payer_wallet` currently has a valid entitlement
+        for a resource. Use this before serving a resource to an agent to confirm
+        payment has been made.
+      tags:
+        - entitlements
+      parameters:
+        - name: resource_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+        - name: payer_wallet
+          in: query
+          required: true
+          schema:
+            type: string
+          example: agt_wallet_7f3a9c2e1b
+      responses:
+        '200':
+          description: Access check result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - has_access
+                  - resource_id
+                  - payer_wallet
+                properties:
+                  has_access:
+                    type: boolean
+                    example: true
+                  resource_id:
+                    type: string
+                    example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+                  payer_wallet:
+                    type: string
+                    example: agt_wallet_7f3a9c2e1b
+                  entitlement:
+                    $ref: '#/components/schemas/Entitlement'
+                    description: Present when has_access is true.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Discovery -----------------------------------------------------------
+
+  /discover:
+    get:
+      operationId: discoverResources
+      summary: Browse the resource marketplace
+      description: |
+        Public endpoint that returns a searchable list of active resources from all
+        vendors. No authentication is required to browse; authentication is needed
+        to pay.
+      tags:
+        - discovery
+      security: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Full-text search across slug, description, and tags.
+          example: summarization
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - api
+              - tool
+              - dataset
+              - agent
+              - model
+          example: api
+        - name: fee_model
+          in: query
+          schema:
+            type: string
+            enum:
+              - per_call
+              - subscription_monthly
+              - subscription_yearly
+              - pay_per_token
+              - revenue_share
+          example: per_call
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+          example: 20
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Marketplace resources matching the query.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Analytics -----------------------------------------------------------
+
+  /analytics/revenue:
+    get:
+      operationId: getRevenueAnalytics
+      summary: Revenue analytics
+      description: Returns aggregated revenue statistics for the authenticated vendor over a given period.
+      tags:
+        - analytics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - 7d
+              - 30d
+              - 90d
+              - 12m
+              - all
+            default: 30d
+          example: 30d
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+          description: Scope stats to a single resource.
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+      responses:
+        '200':
+          description: Revenue analytics.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: string
+                    example: 30d
+                  gross_revenue:
+                    type: number
+                    format: float
+                    example: 3200.00
+                  net_revenue:
+                    type: number
+                    format: float
+                    example: 3040.00
+                  total_payments:
+                    type: integer
+                    example: 1582
+                  unique_payers:
+                    type: integer
+                    example: 341
+                  top_resources:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        resource_id:
+                          type: string
+                          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+                        slug:
+                          type: string
+                          example: gpt-summarizer-v2
+                        gross_revenue:
+                          type: number
+                          format: float
+                          example: 1450.00
+                        payment_count:
+                          type: integer
+                          example: 724
+                  daily_series:
+                    type: array
+                    description: Day-by-day breakdown within the period.
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                          example: '2026-03-29'
+                        gross_revenue:
+                          type: number
+                          format: float
+                          example: 108.50
+                        payment_count:
+                          type: integer
+                          example: 53
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Subscriptions -------------------------------------------------------
+
+  /subscriptions:
+    get:
+      operationId: listSubscriptions
+      summary: List subscriptions
+      description: Returns all active and historical subscriptions for the vendor's resources.
+      tags:
+        - subscriptions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - active
+              - cancelled
+              - past_due
+              - unpaid
+          example: active
+        - name: resource_id
+          in: query
+          schema:
+            type: string
+          example: res_01HX4K9ZRMN8QWTBGX2V3F5P7
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subscription'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /subscriptions/{id}/cancel:
+    post:
+      operationId: cancelSubscription
+      summary: Cancel a subscription
+      description: |
+        Cancels a subscription at the end of the current billing period. The subscriber
+        retains access until `current_period_end`. Immediate cancellation is not supported.
+      tags:
+        - subscriptions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: sub_01HX4K9ZRMN8QWTBGX2V3F5PC
+      responses:
+        '200':
+          description: Subscription scheduled for cancellation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Subscription is already cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- API Keys ------------------------------------------------------------
+
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys
+      description: Returns all non-revoked API keys for the authenticated vendor.
+      tags:
+        - api-keys
+      responses:
+        '200':
+          description: List of API keys (secrets are masked).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    post:
+      operationId: createApiKey
+      summary: Create an API key
+      description: |
+        Creates a new API key. The full secret is returned **only once** in this
+        response — store it securely. Subsequent calls to `GET /api-keys` will only
+        show a masked prefix.
+      tags:
+        - api-keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  maxLength: 64
+                  example: Production Agent Key
+                permissions:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - read
+                      - write
+                      - pay
+                      - admin
+                  default:
+                    - read
+                    - pay
+                  example:
+                    - read
+                    - pay
+      responses:
+        '201':
+          description: API key created. Secret included in this response only.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api-keys/{id}:
+    delete:
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: Permanently revokes the API key. Any requests using this key will immediately fail with 401.
+      tags:
+        - api-keys
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: key_01HX4K9ZRMN8QWTBGX2V3F5PD
+      responses:
+        '200':
+          description: API key revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: key_01HX4K9ZRMN8QWTBGX2V3F5PD
+                  revoked_at:
+                    type: string
+                    format: date-time
+                    example: '2026-03-30T10:00:00Z'
+                  message:
+                    type: string
+                    example: API key has been revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Invoices ------------------------------------------------------------
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      summary: List invoices
+      description: Returns all invoices for the authenticated vendor, newest first.
+      tags:
+        - invoices
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - draft
+              - open
+              - paid
+              - void
+          example: paid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of invoices.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      summary: Get an invoice
+      description: Retrieves a single invoice, including a link to the PDF version.
+      tags:
+        - invoices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: inv_01HX4K9ZRMN8QWTBGX2V3F5PE
+      responses:
+        '200':
+          description: Invoice detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Coupons -------------------------------------------------------------
+
+  /coupons:
+    post:
+      operationId: createCoupon
+      summary: Create a coupon
+      description: Creates a discount coupon that payers can apply at `POST /pay`.
+      tags:
+        - coupons
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - discount_type
+                - discount_value
+              properties:
+                code:
+                  type: string
+                  pattern: '^[A-Z0-9_-]{3,32}$'
+                  example: LAUNCH50
+                discount_type:
+                  type: string
+                  enum:
+                    - percent
+                    - fixed
+                  example: percent
+                discount_value:
+                  type: number
+                  format: float
+                  description: Percentage (0-100) for percent type; USD amount for fixed type.
+                  example: 50
+                max_redemptions:
+                  type: integer
+                  nullable: true
+                  description: Maximum number of times this coupon can be used. Null for unlimited.
+                  example: 200
+                resource_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Restrict this coupon to a specific resource. Null applies to all.
+                  example: null
+                expires_at:
+                  type: string
+                  format: date-time
+                  nullable: true
+                  example: '2026-06-30T23:59:59Z'
+      responses:
+        '201':
+          description: Coupon created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coupon'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A coupon with this code already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ---- Webhooks ------------------------------------------------------------
+
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      summary: List webhook configurations
+      description: Returns all webhook endpoints registered for the authenticated vendor.
+      tags:
+        - webhooks
+      responses:
+        '200':
+          description: List of webhook configs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+    post:
+      operationId: createWebhook
+      summary: Create a webhook
+      description: |
+        Registers a new webhook endpoint. Mainlayer will POST a signed JSON payload
+        to the provided URL whenever any of the subscribed events occur. Verify
+        requests using the `X-Mainlayer-Signature` header and the returned signing secret.
+      tags:
+        - webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - events
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://api.example.com/mainlayer/webhooks
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum:
+                      - payment.completed
+                      - payment.failed
+                      - subscription.created
+                      - subscription.cancelled
+                      - subscription.past_due
+                      - entitlement.granted
+                      - entitlement.expired
+                  example:
+                    - payment.completed
+                    - subscription.cancelled
+      responses:
+        '201':
+          description: Webhook created. Signing secret included in this response only.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: A webhook for this URL already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
