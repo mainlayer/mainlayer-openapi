@@ -1,6 +1,6 @@
 # Mainlayer OpenAPI Specification
 
-Official OpenAPI 3.1 spec and Postman collection for the [Mainlayer](https://mainlayer.xyz) API — payment infrastructure for AI agents.
+Official OpenAPI 3.1 spec and Postman collection for the [Mainlayer](https://mainlayer.fr) API — payment infrastructure for AI agents.
 
 ## Files
 
@@ -54,7 +54,7 @@ npm run bundle:json   # outputs dist/openapi.bundled.json
 1. Open Postman and click **Import**.
 2. Select `postman/mainlayer.postman_collection.json`.
 3. Click the collection, open **Variables**, and set:
-   - `baseUrl` — `https://api.mainlayer.xyz` (default)
+   - `baseUrl` — `https://api.mainlayer.fr` (default)
    - `apiKey` — your Mainlayer API key
 4. Run **Auth / Login** first — the test script automatically saves the returned token to `apiKey` for subsequent requests.
 5. Run any other request or use the **Collection Runner** to execute the full suite.
@@ -67,12 +67,12 @@ All endpoints except `POST /auth/register` and `POST /auth/login` require a Bear
 Authorization: Bearer ml_live_sk_...
 ```
 
-Create API keys via `POST /api-keys` or the [Mainlayer dashboard](https://app.mainlayer.xyz).
+Create API keys via `POST /api-keys` or the [Mainlayer dashboard](https://app.mainlayer.fr).
 
 ## Base URL
 
 ```
-https://api.mainlayer.xyz
+https://api.mainlayer.fr
 ```
 
 ## Endpoints at a Glance
@@ -103,6 +103,6 @@ A GitHub Actions workflow at `.github/workflows/ci.yml` runs on every push and p
 
 ## Links
 
-- API reference: https://mainlayer.xyz/docs
-- Dashboard: https://app.mainlayer.xyz
-- Support: support@mainlayer.xyz
+- API reference: https://docs.mainlayer.fr
+- Dashboard: https://app.mainlayer.fr
+- Support: support@mainlayer.fr

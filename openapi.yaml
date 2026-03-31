@@ -18,12 +18,12 @@ info:
     ```
 
     You can create and manage API keys via the `/api-keys` endpoints or the Mainlayer
-    dashboard at https://app.mainlayer.xyz.
+    dashboard at https://app.mainlayer.fr.
 
     ## Base URL
 
     ```
-    https://api.mainlayer.xyz
+    https://api.mainlayer.fr
     ```
 
     ## Rate Limits
@@ -45,14 +45,14 @@ info:
 
   contact:
     name: Mainlayer Support
-    url: https://mainlayer.xyz/docs
-    email: support@mainlayer.xyz
+    url: https://mainlayer.fr/docs
+    email: support@mainlayer.fr
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.mainlayer.xyz
+  - url: https://api.mainlayer.fr
     description: Production
 
 security:
@@ -338,7 +338,7 @@ components:
         pdf_url:
           type: string
           format: uri
-          example: https://api.mainlayer.xyz/invoices/inv_01HX4K9ZRMN8QWTBGX2V3F5PE/pdf
+          example: https://api.mainlayer.fr/invoices/inv_01HX4K9ZRMN8QWTBGX2V3F5PE/pdf
         created_at:
           type: string
           format: date-time
